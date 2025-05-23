@@ -7,7 +7,7 @@ import { formatCurrency, formatDate } from '../utils/receiptUtils';
 import { collection, query, where, getDocs } from 'firebase/firestore';
 import { db } from '../firebase/config';
 import './ViewReceipts.css'; // Import the custom CSS
-import { Translate, TranslateData, useTranslatedData, useTranslatedAttribute } from '../utils';
+import { Translate, useTranslatedData, useTranslatedAttribute } from '../utils';
 
 const ViewReceipts = () => {
   const { currentUser } = useAuth();
@@ -186,14 +186,14 @@ const ViewReceipts = () => {
                           className="cursor-pointer" 
                           onClick={() => handleSort('timestamp')}
                         >
-                          <Translate textKey="date" />
+                          <Translate textKey="receiptDate" />
                           {sortField === 'timestamp' && (
                             <span>{sortDirection === 'asc' ? ' ↑' : ' ↓'}</span>
                           )}
                         </th>
-                        <th><Translate textKey="transactionId" /></th>
-                        <th><Translate textKey="cashier" /></th>
-                        <th className="item-column"><Translate textKey="items" /></th>
+                        <th><Translate textKey="receiptTransactionId" /></th>
+                        <th><Translate textKey="receiptCashier" /></th>
+                        <th className="item-column"><Translate textKey="receiptItems" /></th>
                         <th 
                           className="cursor-pointer" 
                           onClick={() => handleSort('totalAmount')}
@@ -203,30 +203,30 @@ const ViewReceipts = () => {
                             <span>{sortDirection === 'asc' ? ' ↑' : ' ↓'}</span>
                           )}
                         </th>
-                        <th><Translate textKey="payment" /></th>
-                        <th><Translate textKey="action" /></th>
+                        <th><Translate textKey="receiptPayment" /></th>
+                        <th><Translate textKey="receiptAction" /></th>
                       </tr>
                     </thead>
                     <tbody>
                       {filteredReceipts.map(receipt => (
                         <tr key={receipt.id}>
-                          <td data-label={getTranslatedAttr("date")}>{formatDate(receipt.timestamp)}</td>
-                          <td data-label={getTranslatedAttr("transactionId")} className="text-nowrap">{receipt.transactionId}</td>
-                          <td data-label={getTranslatedAttr("cashier")}>{receipt.cashierName}</td>
-                          <td data-label={getTranslatedAttr("items")} className="item-column">
+                          <td data-label={getTranslatedAttr("receiptDate")}>{formatDate(receipt.timestamp)}</td>
+                          <td data-label={getTranslatedAttr("receiptTransactionId")} className="text-nowrap">{receipt.transactionId}</td>
+                          <td data-label={getTranslatedAttr("receiptCashier")}>{receipt.cashierName}</td>
+                          <td data-label={getTranslatedAttr("receiptItems")} className="item-column">
                             <div className="item-cell-content">
                               {receipt.items.map(item => item.name).join(', ')}
                             </div>
                           </td>
                           <td data-label={getTranslatedAttr("totalAmount")}>{formatCurrency(receipt.totalAmount)}</td>
-                          <td data-label={getTranslatedAttr("payment")}>{getTranslatedPaymentMethod(receipt.paymentMethod)}</td>
-                          <td data-label={getTranslatedAttr("action")}>
+                          <td data-label={getTranslatedAttr("receiptPayment")}>{getTranslatedPaymentMethod(receipt.paymentMethod)}</td>
+                          <td data-label={getTranslatedAttr("receiptAction")}>
                             <Button 
                               variant="outline-primary" 
                               size="sm"
                               onClick={() => handleViewReceipt(receipt.id)}
                             >
-                              <Translate textKey="view" />
+                              <Translate textKey="receiptView" />
                             </Button>
                           </td>
                         </tr>
@@ -247,7 +247,7 @@ const ViewReceipts = () => {
                   variant="success" 
                   onClick={() => navigate('/new-receipt')}
                 >
-                  <Translate textKey="createNewReceipt" />
+                  <Translate textKey="receiptCreateNew" />
                 </Button>
               </div>
             </Card.Body>
