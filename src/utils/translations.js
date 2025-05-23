@@ -30,7 +30,7 @@ const translations = {
     // Additional menu items
     stockInventory: "Stock Inventory",
     addNewEmployee: "Add New Employee",
-    attendanceRecords: "Attendance Records",
+    attendanceRecordsMenu: "Attendance Records",
     shopSettings: "Shop Settings",
     
     // Language toggle
@@ -151,15 +151,15 @@ const translations = {
     loadingReceipts: "Loading receipts...",
     noReceiptsMatch: "No receipts match your search criteria.",
     noReceiptsFound: "No receipts found. Start by creating a new receipt.",
-    date: "Date",
-    transactionId: "Transaction ID",
-    cashier: "Cashier",
-    items: "Items",
+    receiptDate: "Date",
+    receiptTransactionId: "Transaction ID",
+    receiptCashier: "Cashier",
+    receiptItems: "Items",
     totalAmount: "Total Amount",
-    payment: "Payment",
-    action: "Action",
-    createNewReceipt: "Create New Receipt",
-    view: "View",
+    receiptPayment: "Payment",
+    receiptAction: "Action",
+    receiptCreateNew: "Create New Receipt",
+    receiptView: "View",
 
     // Stock inventory page
     addNewItem: "Add New Item",
@@ -222,7 +222,7 @@ const translations = {
     saving: "Saving...",
 
     // Attendance page
-    attendanceRecords: "Attendance Records",
+    attendanceRecordsTitle: "Attendance Records",
     employee: "Employee",
     checkIn: "Check In",
     checkOut: "Check Out",
@@ -238,7 +238,7 @@ const translations = {
 
     // Mark Attendance page
     selectDate: "Select Date",
-    loadingEmployees: "Loading employees...",
+    loadingEmployeesData: "Loading employees...",
     submitting: "Submitting...",
     submitAttendance: "Save Attendance",
     optionalNotes: "Add notes",
@@ -313,7 +313,7 @@ const translations = {
     // Additional menu items
     stockInventory: "اسٹاک انوینٹری",
     addNewEmployee: "نیا ملازم شامل کریں",
-    attendanceRecords: "حاضری ریکارڈز",
+    attendanceRecordsMenu: "حاضری ریکارڈز",
     shopSettings: "دکان کی ترتیبات",
     
     // Language toggle
@@ -434,15 +434,15 @@ const translations = {
     loadingReceipts: "رسیدیں لوڈ ہو رہی ہیں...",
     noReceiptsMatch: "آپ کے تلاش کے معیار سے کوئی رسید مطابقت نہیں رکھتی۔",
     noReceiptsFound: "کوئی رسیدیں نہیں ملیں۔ نئی رسید بنا کر شروع کریں۔",
-    date: "تاریخ",
-    transactionId: "ٹرانزیکشن آئی ڈی",
-    cashier: "کیشیئر",
-    items: "آئٹمز",
+    receiptDate: "تاریخ",
+    receiptTransactionId: "ٹرانزیکشن آئی ڈی",
+    receiptCashier: "کیشیئر",
+    receiptItems: "آئٹمز",
     totalAmount: "کل رقم",
-    payment: "ادائیگی",
-    action: "عمل",
-    createNewReceipt: "نئی رسید بنائیں",
-    view: "دیکھیں",
+    receiptPayment: "ادائیگی",
+    receiptAction: "عمل",
+    receiptCreateNew: "نئی رسید بنائیں",
+    receiptView: "دیکھیں",
 
     // Stock inventory page
     addNewItem: "نیا آئٹم شامل کریں",
@@ -505,7 +505,7 @@ const translations = {
     saving: "محفوظ کیا جا رہا ہے...",
 
     // Attendance page
-    attendanceRecords: "حاضری ریکارڈز",
+    attendanceRecordsTitle: "حاضری ریکارڈز",
     employee: "ملازم",
     checkIn: "چیک اِن",
     checkOut: "چیک آؤٹ",
@@ -521,7 +521,7 @@ const translations = {
 
     // Mark Attendance page
     selectDate: "تاریخ منتخب کریں",
-    loadingEmployees: "ملازمین لوڈ ہو رہے ہیں...",
+    loadingEmployeesData: "ملازمین لوڈ ہو رہے ہیں...",
     submitting: "جمع کیا جا رہا ہے...",
     submitAttendance: "حاضری محفوظ کریں",
     optionalNotes: "نوٹس شامل کریں",
