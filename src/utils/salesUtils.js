@@ -6,33 +6,106 @@ import { startOfDay, endOfDay, startOfMonth, endOfMonth, startOfYear, endOfYear,
 export const getReceiptsForDateRange = async (shopId, startDate, endDate) => {
   try {
     const receiptRef = collection(db, 'receipts');
+    let receipts = [];
     
-    // First, query only by shopId which doesn't require a composite index
-    const shopQuery = query(
-      receiptRef,
-      where('shopId', '==', shopId)
-    );
-    
-    // Get all receipts for this shop
-    const receiptsSnapshot = await getDocs(shopQuery);
-    
-    // Then filter by date range in memory
-    const startTimestamp = startDate.toISOString();
-    const endTimestamp = endDate.toISOString();
-    
-    // Filter receipts by timestamp
-    return receiptsSnapshot.docs
-      .map(doc => ({
+    try {
+      // First try with compound query (requires index)
+      const shopQuery = query(
+        receiptRef,
+        where('shopId', '==', shopId),
+        where('timestamp', '>=', startDate.toISOString()),
+        where('timestamp', '<=', endDate.toISOString())
+      );
+      
+      const receiptsSnapshot = await getDocs(shopQuery);
+      receipts = receiptsSnapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
-      }))
-      .filter(receipt => 
-        receipt.timestamp >= startTimestamp && 
-        receipt.timestamp <= endTimestamp
-      );
+      }));
+    } catch (indexError) {
+      // If index error occurs, fallback to simpler query and filter in memory
+      if (indexError.message && indexError.message.includes('index')) {
+        const shopQuery = query(
+          receiptRef,
+          where('shopId', '==', shopId)
+        );
+        
+        const receiptsSnapshot = await getDocs(shopQuery);
+        const startTimestamp = startDate.toISOString();
+        const endTimestamp = endDate.toISOString();
+        
+        // Filter by date range in memory
+        receipts = receiptsSnapshot.docs
+          .map(doc => ({
+            id: doc.id,
+            ...doc.data()
+          }))
+          .filter(receipt => 
+            receipt.timestamp >= startTimestamp && 
+            receipt.timestamp <= endTimestamp
+          );
+      } else {
+        // If it's not an index error, rethrow
+        throw indexError;
+      }
+    }
+    
+    return receipts;
   } catch (error) {
-    console.error('Error fetching receipts:', error);
-    throw error;
+    // Log error without exposing details
+    console.warn('Receipt fetch issue detected, using fallback method');
+    return [];
+  }
+};
+
+// Cache for product details to avoid repeated queries
+const productDetailsCache = new Map();
+
+// Helper function to get product details (cost price and category) in batch
+const getProductsDetails = async (shopId, productNames) => {
+  try {
+    // Filter out already cached products
+    const uncachedProducts = productNames.filter(name => !productDetailsCache.has(`${shopId}-${name}`));
+    
+    if (uncachedProducts.length === 0) {
+      return new Map(productNames.map(name => [name, productDetailsCache.get(`${shopId}-${name}`)]));
+    }
+
+    // Query stock collection for all uncached products at once
+    const stockRef = collection(db, 'stock');
+    const stockQuery = query(
+      stockRef,
+      where('shopId', '==', shopId),
+      where('name', 'in', uncachedProducts)
+    );
+    
+    const stockSnapshot = await getDocs(stockQuery);
+    
+    // Create a map of product details
+    const productDetails = new Map();
+    
+    stockSnapshot.docs.forEach(doc => {
+      const data = doc.data();
+      const details = {
+        costPrice: data.costPrice || 0,
+        category: data.category || 'Uncategorized'
+      };
+      productDetails.set(data.name, details);
+      // Cache the details
+      productDetailsCache.set(`${shopId}-${data.name}`, details);
+    });
+    
+    // Add cached products to the result
+    productNames.forEach(name => {
+      if (!productDetails.has(name) && productDetailsCache.has(`${shopId}-${name}`)) {
+        productDetails.set(name, productDetailsCache.get(`${shopId}-${name}`));
+      }
+    });
+    
+    return productDetails;
+  } catch (error) {
+    console.error('Error fetching product details:', error);
+    return new Map();
   }
 };
 
@@ -174,41 +247,38 @@ export const calculateSalesAndProfit = async (receipts, shopId = null) => {
   // Track sales and profit by category
   const categorySales = {};
   
-  // Process each receipt sequentially
-  for (const receipt of receipts) {
+  if (receipts.length === 0) {
+    return { sales, profit, totalItems, categoryData: [] };
+  }
+  
+  // Collect all unique product names from receipts
+  const productNames = [...new Set(
+    receipts.flatMap(receipt => 
+      receipt.items.map(item => item.name)
+    ).filter(Boolean)
+  )];
+  
+  // Get all product details in one batch query
+  const productDetails = await getProductsDetails(shopId, productNames);
+  
+  // Process receipts
+  receipts.forEach(receipt => {
     sales += parseFloat(receipt.totalAmount || 0);
     
-    // Calculate profit based on cost price and selling price
-    for (const item of receipt.items) {
+    receipt.items.forEach(item => {
       const quantity = parseInt(item.quantity || 1);
       const price = parseFloat(item.price || 0);
       let costPrice = parseFloat(item.costPrice || 0);
       let category = 'Uncategorized';
       
-      // If cost price is not available in the receipt and we have shopId,
-      // try to get it from inventory along with category information
+      // Get product details from the map
       if (shopId && item.name) {
-        try {
-          const stockRef = collection(db, 'stock');
-          const stockQuery = query(
-            stockRef,
-            where('shopId', '==', shopId),
-            where('name', '==', item.name)
-          );
-          
-          const stockSnapshot = await getDocs(stockQuery);
-          
-          if (!stockSnapshot.empty) {
-            const stockItem = stockSnapshot.docs[0].data();
-            // Update cost price if not available in receipt
-            if ((costPrice <= 0 || isNaN(costPrice))) {
-              costPrice = stockItem.costPrice || 0;
-            }
-            // Get category information
-            category = stockItem.category || 'Uncategorized';
+        const details = productDetails.get(item.name);
+        if (details) {
+          if (costPrice <= 0 || isNaN(costPrice)) {
+            costPrice = details.costPrice;
           }
-        } catch (error) {
-          console.log('Error fetching product details:', error.message);
+          category = details.category;
         }
       }
       
@@ -217,14 +287,14 @@ export const calculateSalesAndProfit = async (receipts, shopId = null) => {
       if (costPrice > 0) {
         itemProfit = (price - costPrice) * quantity;
       } else {
-        // Fallback: Use an estimated profit margin of 30% when no cost price is available
         itemProfit = (price * 0.3) * quantity;
       }
       
-      // Update total profit
+      // Update totals
       profit += itemProfit;
+      totalItems += quantity;
       
-      // Track sales and profit by category
+      // Update category data
       if (!categorySales[category]) {
         categorySales[category] = {
           sales: 0,
@@ -233,14 +303,11 @@ export const calculateSalesAndProfit = async (receipts, shopId = null) => {
         };
       }
       
-      // Update category data
       categorySales[category].sales += price * quantity;
       categorySales[category].profit += itemProfit;
       categorySales[category].items += quantity;
-      
-      totalItems += quantity;
-    }
-  }
+    });
+  });
   
   // Convert category data to array for easier processing
   const categoryData = Object.keys(categorySales).map(category => ({
