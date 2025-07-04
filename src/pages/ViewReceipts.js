@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Container, Table, Button, Card, Form, InputGroup, Row, Col, Modal } from 'react-bootstrap';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
@@ -27,7 +27,7 @@ const ViewReceipts = () => {
   // Get translations for attributes
   const getTranslatedAttr = useTranslatedAttribute();
 
-  const fetchReceipts = () => {
+  const fetchReceipts = useCallback(() => {
     if (!currentUser) return;
     
     setLoading(true);
@@ -54,11 +54,11 @@ const ViewReceipts = () => {
       .finally(() => {
         setLoading(false);
       });
-  };
+  }, [currentUser]);
 
   useEffect(() => {
     fetchReceipts();
-  }, [currentUser]);
+  }, [fetchReceipts]);
 
   // Handle search and filtering
   const filteredReceipts = translatedReceipts
