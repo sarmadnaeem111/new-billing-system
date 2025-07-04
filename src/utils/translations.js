@@ -443,6 +443,10 @@ const translations = {
     receiptAction: "عمل",
     receiptCreateNew: "نئی رسید بنائیں",
     receiptView: "دیکھیں",
+    confirmDeleteReceipt: "کیا آپ واقعی اس رسید کو حذف کرنا چاہتے ہیں؟",
+    deleteWarning: "یہ عمل واپس نہیں کیا جا سکتا۔",
+    deleting: "حذف کیا جا رہا ہے...",
+    receiptDeleted: "رسید کامیابی سے حذف کر دی گئی۔",
 
     // Stock inventory page
     addNewItem: "نیا آئٹم شامل کریں",
@@ -609,4 +613,4 @@ export const getTranslatedText = (key, language) => {
   return translations[language]?.[key] || key;
 };
 
-export default translations; 
+export default translations;
