@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Container, Table, Button, Card, Form, InputGroup, Row, Col } from 'react-bootstrap';
+import { Container, Table, Button, Card, Form, InputGroup, Row, Col, Modal } from 'react-bootstrap';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import MainNavbar from '../components/Navbar';
-import { formatCurrency, formatDate } from '../utils/receiptUtils';
+import { formatCurrency, formatDate, deleteReceipt } from '../utils/receiptUtils';
 import { collection, query, where, getDocs } from 'firebase/firestore';
 import { db } from '../firebase/config';
 import './ViewReceipts.css'; // Import the custom CSS
@@ -17,6 +17,9 @@ const ViewReceipts = () => {
   const [sortField, setSortField] = useState('timestamp');
   const [sortDirection, setSortDirection] = useState('desc');
   const [dateFilter, setDateFilter] = useState('');
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [receiptToDelete, setReceiptToDelete] = useState(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
   const navigate = useNavigate();
 
   // Translate receipts data
@@ -24,36 +27,36 @@ const ViewReceipts = () => {
   // Get translations for attributes
   const getTranslatedAttr = useTranslatedAttribute();
 
-  useEffect(() => {
-    // Convert to non-async function
-    const fetchReceipts = () => {
-      if (!currentUser) return;
-      
-      // Create a simple query without ordering
-      const receiptRef = collection(db, 'receipts');
-      const receiptQuery = query(
-        receiptRef,
-        where('shopId', '==', currentUser.uid)
-      );
-      
-      getDocs(receiptQuery)
-        .then(querySnapshot => {
-          // Get all receipts and handle sorting client-side
-          const receiptsData = querySnapshot.docs.map(doc => ({
-            id: doc.id,
-            ...doc.data()
-          }));
-          
-          setReceipts(receiptsData);
-        })
-        .catch(error => {
-          console.error('Error fetching receipts:', error);
-        })
-        .finally(() => {
-          setLoading(false);
-        });
-    };
+  const fetchReceipts = () => {
+    if (!currentUser) return;
+    
+    setLoading(true);
+    // Create a simple query without ordering
+    const receiptRef = collection(db, 'receipts');
+    const receiptQuery = query(
+      receiptRef,
+      where('shopId', '==', currentUser.uid)
+    );
+    
+    getDocs(receiptQuery)
+      .then(querySnapshot => {
+        // Get all receipts and handle sorting client-side
+        const receiptsData = querySnapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        }));
+        
+        setReceipts(receiptsData);
+      })
+      .catch(error => {
+        console.error('Error fetching receipts:', error);
+      })
+      .finally(() => {
+        setLoading(false);
+      });
+  };
 
+  useEffect(() => {
     fetchReceipts();
   }, [currentUser]);
 
@@ -96,6 +99,28 @@ const ViewReceipts = () => {
   // Handle view receipt
   const handleViewReceipt = (receiptId) => {
     navigate(`/receipt/${receiptId}`);
+  };
+
+  // Handle delete receipt confirmation
+  const handleDeleteConfirmation = (receipt) => {
+    setReceiptToDelete(receipt);
+    setShowDeleteModal(true);
+  };
+
+  // Handle delete receipt
+  const handleDeleteReceipt = async () => {
+    if (!receiptToDelete) return;
+    
+    setDeleteLoading(true);
+    try {
+      await deleteReceipt(receiptToDelete.id);
+      setReceipts(prevReceipts => prevReceipts.filter(r => r.id !== receiptToDelete.id));
+      setShowDeleteModal(false);
+    } catch (error) {
+      console.error('Error deleting receipt:', error);
+    } finally {
+      setDeleteLoading(false);
+    }
   };
 
   // Function to translate payment method
@@ -221,13 +246,22 @@ const ViewReceipts = () => {
                           <td data-label={getTranslatedAttr("totalAmount")}>{formatCurrency(receipt.totalAmount)}</td>
                           <td data-label={getTranslatedAttr("receiptPayment")}>{getTranslatedPaymentMethod(receipt.paymentMethod)}</td>
                           <td data-label={getTranslatedAttr("receiptAction")}>
-                            <Button 
-                              variant="outline-primary" 
-                              size="sm"
-                              onClick={() => handleViewReceipt(receipt.id)}
-                            >
-                              <Translate textKey="receiptView" />
-                            </Button>
+                            <div className="d-flex gap-2">
+                              <Button 
+                                variant="outline-primary" 
+                                size="sm"
+                                onClick={() => handleViewReceipt(receipt.id)}
+                              >
+                                <Translate textKey="receiptView" />
+                              </Button>
+                              <Button 
+                                variant="outline-danger" 
+                                size="sm"
+                                onClick={() => handleDeleteConfirmation(receipt)}
+                              >
+                                <Translate textKey="delete" fallback="Delete" />
+                              </Button>
+                            </div>
                           </td>
                         </tr>
                       ))}
@@ -253,9 +287,53 @@ const ViewReceipts = () => {
             </Card.Body>
           </Card>
         )}
+
+        {/* Delete Confirmation Modal */}
+        <Modal show={showDeleteModal} onHide={() => setShowDeleteModal(false)} centered>
+          <Modal.Header closeButton>
+            <Modal.Title><Translate textKey="confirmDelete" fallback="Confirm Delete" /></Modal.Title>
+          </Modal.Header>
+          <Modal.Body>
+            <p>
+              <Translate 
+                textKey="confirmDeleteReceipt" 
+                fallback="Are you sure you want to delete this receipt?" 
+              />
+            </p>
+            {receiptToDelete && (
+              <p>
+                <strong><Translate textKey="receiptTransactionId" />:</strong> {receiptToDelete.transactionId}<br />
+                <strong><Translate textKey="receiptDate" />:</strong> {formatDate(receiptToDelete.timestamp)}<br />
+                <strong><Translate textKey="totalAmount" />:</strong> {formatCurrency(receiptToDelete.totalAmount)}
+              </p>
+            )}
+            <p className="text-danger">
+              <Translate 
+                textKey="deleteWarning" 
+                fallback="This action cannot be undone." 
+              />
+            </p>
+          </Modal.Body>
+          <Modal.Footer>
+            <Button variant="secondary" onClick={() => setShowDeleteModal(false)}>
+              <Translate textKey="cancel" fallback="Cancel" />
+            </Button>
+            <Button 
+              variant="danger" 
+              onClick={handleDeleteReceipt}
+              disabled={deleteLoading}
+            >
+              {deleteLoading ? (
+                <Translate textKey="deleting" fallback="Deleting..." />
+              ) : (
+                <Translate textKey="delete" fallback="Delete" />
+              )}
+            </Button>
+          </Modal.Footer>
+        </Modal>
       </Container>
     </>
   );
 };
 
-export default ViewReceipts; 
+export default ViewReceipts;
