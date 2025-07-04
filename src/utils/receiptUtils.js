@@ -1,5 +1,5 @@
 import { v4 as uuidv4 } from 'uuid';
-import { addDoc, collection, doc, getDoc } from 'firebase/firestore';
+import { addDoc, collection, doc, getDoc, deleteDoc } from 'firebase/firestore';
 import { db } from '../firebase/config';
 
 // Generate a unique transaction ID
@@ -48,6 +48,18 @@ export const getReceiptById = async (receiptId) => {
   }
 };
 
+// Delete a receipt by ID
+export const deleteReceipt = async (receiptId) => {
+  try {
+    const receiptRef = doc(db, 'receipts', receiptId);
+    await deleteDoc(receiptRef);
+    return true;
+  } catch (error) {
+    console.error('Error deleting receipt:', error);
+    throw error;
+  }
+};
+
 // Format currency
 export const formatCurrency = (amount) => {
   return new Intl.NumberFormat('en-PK', {
@@ -66,4 +78,4 @@ export const formatDate = (dateString) => {
 export const formatTime = (dateString) => {
   const date = new Date(dateString);
   return date.toLocaleTimeString();
-}; 
+};
