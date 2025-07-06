@@ -175,6 +175,13 @@ const ViewReceipt = () => {
             </Button>
             
             <Button 
+              variant="warning"
+              onClick={() => navigate(`/edit-receipt/${id}`)}
+            >
+              Edit Receipt
+            </Button>
+            
+            <Button 
               variant="info" 
               onClick={() => setShowSizeControls(!showSizeControls)} 
             >
@@ -310,4 +317,4 @@ const ViewReceipt = () => {
   );
 };
 
-export default ViewReceipt; 
+export default ViewReceipt;
