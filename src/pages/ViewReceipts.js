@@ -255,6 +255,13 @@ const ViewReceipts = () => {
                                 <Translate textKey="receiptView" />
                               </Button>
                               <Button 
+                                variant="outline-warning" 
+                                size="sm"
+                                onClick={() => navigate(`/edit-receipt/${receipt.id}`)}
+                              >
+                                <Translate textKey="edit" fallback="Edit" />
+                              </Button>
+                              <Button 
                                 variant="outline-danger" 
                                 size="sm"
                                 onClick={() => handleDeleteConfirmation(receipt)}
