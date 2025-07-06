@@ -4,11 +4,13 @@ import { useNavigate } from 'react-router-dom';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 import BarcodeReader from 'react-barcode-reader';
+import Select from 'react-select';
 import { useAuth } from '../contexts/AuthContext';
 import MainNavbar from '../components/Navbar';
 import { calculateTotal, generateTransactionId, saveReceipt } from '../utils/receiptUtils';
 import { getShopStock, updateStockQuantity } from '../utils/stockUtils';
 import { Translate, TranslateData, useTranslatedData } from '../utils';
+import '../styles/select.css'; // Import custom styles for react-select
 
 const NewReceipt = () => {
   const { currentUser, shopData } = useAuth();
@@ -136,7 +138,34 @@ const NewReceipt = () => {
       }
     }
     
+    // If price is changed and the item uses kg as unit, automatically adjust the quantity
+    if (field === 'price' && newItems[index].quantityUnit === 'kg' && stockLoaded) {
+      const matchingItem = stockItems.find(stockItem => 
+        stockItem.name.toLowerCase() === newItems[index].name.toLowerCase());
+      
+      if (matchingItem && matchingItem.price > 0) {
+        // Calculate new quantity based on entered price and per kg price
+        const enteredPrice = parseFloat(value) || 0;
+        const perKgPrice = parseFloat(matchingItem.price) || 0;
+        
+        if (perKgPrice > 0) {
+          // Calculate new quantity in kg
+          const newQuantity = enteredPrice / perKgPrice;
+          
+          // Format to 3 decimal places for precision
+          newItems[index].quantity = newQuantity.toFixed(3);
+        }
+      }
+    }
+    
     setItems(newItems);
+  };
+
+  // Handle react-select change for item name
+  const handleSelectChange = (selectedOption, index) => {
+    if (selectedOption) {
+      handleItemChange(index, 'name', selectedOption.value);
+    }
   };
 
   // Add a new item row
@@ -487,16 +516,25 @@ const NewReceipt = () => {
                       <Col sm={5}>
                         <Form.Group>
                           <Form.Label><Translate textKey="itemName" /></Form.Label>
-                          <Form.Select
+                          <Select
+                            value={stockLoaded && stockItems.find(option => option.name === item.name) ? 
+                              { value: item.name, label: item.name } : 
+                              null
+                            }
+                            onChange={(option) => handleSelectChange(option, index)}
+                            options={stockLoaded ? 
+                              stockItems.map(stockItem => ({ 
+                                value: stockItem.name, 
+                                label: stockItem.name 
+                              })) : []
+                            }
+                            placeholder={<Translate textKey="selectItem" />}
+                            isClearable
+                            isSearchable
+                            className="basic-single"
+                            classNamePrefix="select"
                             required
-                            value={item.name}
-                            onChange={(e) => handleItemChange(index, 'name', e.target.value)}
-                          >
-                            <option value=""><Translate textKey="selectItem" /></option>
-                            {stockLoaded && stockItems.map((stockItem, i) => (
-                              <option key={i} value={stockItem.name}>{stockItem.name}</option>
-                            ))}
-                          </Form.Select>
+                          />
                         </Form.Group>
                       </Col>
                       <Col sm={3}>
@@ -643,7 +681,8 @@ const NewReceipt = () => {
                           <td>{item.name || 'Item Name'}</td>
                           <td className="text-end">RS {parseFloat(item.price || 0).toFixed(2)}</td>
                           <td className="text-center">
-                            {item.quantity || 1} {item.quantityUnit === 'kg' ? 'KG' : ''}
+                            {item.quantity || 1} {item.quantityUnit === 'kg' ? 
+                              (parseFloat(item.quantity) < 1 ? 'gram' : 'KG') : ''}
                           </td>
                           <td className="text-end">RS {(parseFloat(item.price || 0) * parseFloat(item.quantity || 1)).toFixed(2)}</td>
                         </tr>
@@ -676,4 +715,4 @@ const NewReceipt = () => {
   );
 };
 
-export default NewReceipt; 
+export default NewReceipt;
