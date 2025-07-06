@@ -48,6 +48,20 @@ const NewReceipt = () => {
     }
   }, [currentUser]);
 
+  // Set default cashier name from settings if available
+  useEffect(() => {
+    if (shopData && shopData.cashierNames && shopData.cashierNames.length > 0) {
+      setCashierName(shopData.cashierNames[0]);
+    }
+  }, [shopData]);
+
+  // Set default manager name from settings if available
+  useEffect(() => {
+    if (shopData && shopData.managerNames && shopData.managerNames.length > 0) {
+      setManagerName(shopData.managerNames[0]);
+    }
+  }, [shopData]);
+
   // Handle successful barcode scan
   const handleScan = (data) => {
     if (!data) return;
