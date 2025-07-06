@@ -1,136 +1,77 @@
-import { collection, query, where, getDocs, doc, getDoc } from 'firebase/firestore';
+import { collection, query, where, getDocs, doc, getDoc, Timestamp } from 'firebase/firestore';
 import { db } from '../firebase/config';
 import { startOfDay, endOfDay, startOfMonth, endOfMonth, startOfYear, endOfYear, format } from 'date-fns';
+
+// Cache for stock items to avoid repeated queries
+const stockItemsCache = new Map();
 
 // Helper function to query receipts for a specific date range
 export const getReceiptsForDateRange = async (shopId, startDate, endDate) => {
   try {
     const receiptRef = collection(db, 'receipts');
-    let receipts = [];
     
-    try {
-      // First try with compound query (requires index)
-      const shopQuery = query(
-        receiptRef,
-        where('shopId', '==', shopId),
-        where('timestamp', '>=', startDate.toISOString()),
-        where('timestamp', '<=', endDate.toISOString())
-      );
-      
-      const receiptsSnapshot = await getDocs(shopQuery);
-      receipts = receiptsSnapshot.docs.map(doc => ({
+    // First, query only by shopId which doesn't require a composite index
+    const shopQuery = query(
+      receiptRef,
+      where('shopId', '==', shopId)
+    );
+    
+    // Get all receipts for this shop
+    const receiptsSnapshot = await getDocs(shopQuery);
+    
+    // Then filter by date range in memory
+    const startTimestamp = startDate.toISOString();
+    const endTimestamp = endDate.toISOString();
+    
+    // Filter receipts by timestamp
+    return receiptsSnapshot.docs
+      .map(doc => ({
         id: doc.id,
         ...doc.data()
-      }));
-    } catch (indexError) {
-      // If index error occurs, fallback to simpler query and filter in memory
-      if (indexError.message && indexError.message.includes('index')) {
-        const shopQuery = query(
-          receiptRef,
-          where('shopId', '==', shopId)
-        );
-        
-        const receiptsSnapshot = await getDocs(shopQuery);
-        const startTimestamp = startDate.toISOString();
-        const endTimestamp = endDate.toISOString();
-        
-        // Filter by date range in memory
-        receipts = receiptsSnapshot.docs
-          .map(doc => ({
-            id: doc.id,
-            ...doc.data()
-          }))
-          .filter(receipt => 
-            receipt.timestamp >= startTimestamp && 
-            receipt.timestamp <= endTimestamp
-          );
-      } else {
-        // If it's not an index error, rethrow
-        throw indexError;
-      }
-    }
-    
-    return receipts;
+      }))
+      .filter(receipt => 
+        receipt.timestamp >= startTimestamp && 
+        receipt.timestamp <= endTimestamp
+      );
   } catch (error) {
-    // Log error without exposing details
-    console.warn('Receipt fetch issue detected, using fallback method');
-    return [];
+    console.error('Error fetching receipts:', error);
+    throw error;
   }
 };
 
-// Cache for product details to avoid repeated queries
-const productDetailsCache = new Map();
-
-// Helper function to get product details (cost price and category) in batch
-const getProductsDetails = async (shopId, productNames) => {
+// Helper function to get all stock items for a shop (with caching)
+const getShopStockItems = async (shopId) => {
+  // Check if we already have the stock items in cache
+  if (stockItemsCache.has(shopId)) {
+    return stockItemsCache.get(shopId);
+  }
+  
   try {
-    // Filter out already cached products
-    const uncachedProducts = productNames.filter(name => !productDetailsCache.has(`${shopId}-${name}`));
-    
-    if (uncachedProducts.length === 0) {
-      return new Map(productNames.map(name => [name, productDetailsCache.get(`${shopId}-${name}`)]));
-    }
-
-    // Query stock collection for all uncached products at once
     const stockRef = collection(db, 'stock');
     const stockQuery = query(
       stockRef,
-      where('shopId', '==', shopId),
-      where('name', 'in', uncachedProducts)
+      where('shopId', '==', shopId)
     );
     
     const stockSnapshot = await getDocs(stockQuery);
     
-    // Create a map of product details
-    const productDetails = new Map();
-    
+    // Create a map of item name to stock details for quick lookup
+    const stockItems = {};
     stockSnapshot.docs.forEach(doc => {
-      const data = doc.data();
-      const details = {
-        costPrice: data.costPrice || 0,
-        category: data.category || 'Uncategorized'
+      const item = doc.data();
+      stockItems[item.name.toLowerCase()] = {
+        costPrice: item.costPrice || 0,
+        category: item.category || 'Uncategorized'
       };
-      productDetails.set(data.name, details);
-      // Cache the details
-      productDetailsCache.set(`${shopId}-${data.name}`, details);
     });
     
-    // Add cached products to the result
-    productNames.forEach(name => {
-      if (!productDetails.has(name) && productDetailsCache.has(`${shopId}-${name}`)) {
-        productDetails.set(name, productDetailsCache.get(`${shopId}-${name}`));
-      }
-    });
+    // Store in cache
+    stockItemsCache.set(shopId, stockItems);
     
-    return productDetails;
+    return stockItems;
   } catch (error) {
-    console.error('Error fetching product details:', error);
-    return new Map();
-  }
-};
-
-// Helper function to get product cost price from inventory if not in receipt
-const getProductCostPrice = async (shopId, productName) => {
-  try {
-    // Query the inventory for this product
-    const stockRef = collection(db, 'stock');
-    const stockQuery = query(
-      stockRef,
-      where('shopId', '==', shopId),
-      where('name', '==', productName)
-    );
-    
-    const stockSnapshot = await getDocs(stockQuery);
-    
-    if (!stockSnapshot.empty) {
-      const stockItem = stockSnapshot.docs[0].data();
-      return stockItem.costPrice || 0;
-    }
-    
-    return 0;
-  } catch (error) {
-    console.log('Error fetching product cost price:', error.message);
-    return 0;
+    console.log('Error fetching stock items:', error.message);
+    return {};
   }
 };
 
@@ -170,9 +111,12 @@ export const getMonthlySalesAndProfit = async (shopId, date = new Date()) => {
     daysInMonth[day].receipts.push(receipt);
   });
   
+  // Get all stock items once for the entire calculation
+  const stockItems = await getShopStockItems(shopId);
+  
   // Calculate sales and profit for each day
   const dailyCalcPromises = Object.keys(daysInMonth).sort().map(async (day) => {
-    const { sales, profit } = await calculateSalesAndProfit(daysInMonth[day].receipts, shopId);
+    const { sales, profit } = await calculateSalesAndProfit(daysInMonth[day].receipts, shopId, stockItems);
     return {
       day: daysInMonth[day].day,
       sales,
@@ -183,7 +127,7 @@ export const getMonthlySalesAndProfit = async (shopId, date = new Date()) => {
   // Wait for all profit calculations to complete
   dailyData.push(...await Promise.all(dailyCalcPromises));
   
-  const totals = await calculateSalesAndProfit(receipts, shopId);
+  const totals = await calculateSalesAndProfit(receipts, shopId, stockItems);
   
   return {
     ...totals,
@@ -217,9 +161,12 @@ export const getYearlySalesAndProfit = async (shopId, date = new Date()) => {
     monthsInYear[month].receipts.push(receipt);
   });
   
+  // Get all stock items once for the entire calculation
+  const stockItems = await getShopStockItems(shopId);
+  
   // Calculate sales and profit for each month
   const monthlyCalcPromises = Object.keys(monthsInYear).sort().map(async (month) => {
-    const { sales, profit } = await calculateSalesAndProfit(monthsInYear[month].receipts, shopId);
+    const { sales, profit } = await calculateSalesAndProfit(monthsInYear[month].receipts, shopId, stockItems);
     return {
       month: monthsInYear[month].month,
       sales,
@@ -230,7 +177,7 @@ export const getYearlySalesAndProfit = async (shopId, date = new Date()) => {
   // Wait for all profit calculations to complete
   monthlyData.push(...await Promise.all(monthlyCalcPromises));
   
-  const totals = await calculateSalesAndProfit(receipts, shopId);
+  const totals = await calculateSalesAndProfit(receipts, shopId, stockItems);
   
   return {
     ...totals,
@@ -239,7 +186,7 @@ export const getYearlySalesAndProfit = async (shopId, date = new Date()) => {
 };
 
 // Helper function to calculate sales and profit from receipt items
-export const calculateSalesAndProfit = async (receipts, shopId = null) => {
+export const calculateSalesAndProfit = async (receipts, shopId = null, stockItemsData = null) => {
   let sales = 0;
   let profit = 0;
   let totalItems = 0;
@@ -247,38 +194,26 @@ export const calculateSalesAndProfit = async (receipts, shopId = null) => {
   // Track sales and profit by category
   const categorySales = {};
   
-  if (receipts.length === 0) {
-    return { sales, profit, totalItems, categoryData: [] };
-  }
+  // Get stock items if not provided
+  const stockItems = stockItemsData || (shopId ? await getShopStockItems(shopId) : {});
   
-  // Collect all unique product names from receipts
-  const productNames = [...new Set(
-    receipts.flatMap(receipt => 
-      receipt.items.map(item => item.name)
-    ).filter(Boolean)
-  )];
-  
-  // Get all product details in one batch query
-  const productDetails = await getProductsDetails(shopId, productNames);
-  
-  // Process receipts
-  receipts.forEach(receipt => {
+  // Process all receipts
+  for (const receipt of receipts) {
     sales += parseFloat(receipt.totalAmount || 0);
     
-    receipt.items.forEach(item => {
-      const quantity = parseInt(item.quantity || 1);
+    // Process all items in this receipt
+    for (const item of receipt.items) {
+      const quantity = parseFloat(item.quantity || 1);
       const price = parseFloat(item.price || 0);
       let costPrice = parseFloat(item.costPrice || 0);
       let category = 'Uncategorized';
       
-      // Get product details from the map
-      if (shopId && item.name) {
-        const details = productDetails.get(item.name);
-        if (details) {
-          if (costPrice <= 0 || isNaN(costPrice)) {
-            costPrice = details.costPrice;
-          }
-          category = details.category;
+      // If cost price is not available in the receipt, try to get it from cached stock items
+      if ((costPrice <= 0 || isNaN(costPrice)) && item.name) {
+        const stockItem = stockItems[item.name.toLowerCase()];
+        if (stockItem) {
+          costPrice = stockItem.costPrice || 0;
+          category = stockItem.category || 'Uncategorized';
         }
       }
       
@@ -287,14 +222,14 @@ export const calculateSalesAndProfit = async (receipts, shopId = null) => {
       if (costPrice > 0) {
         itemProfit = (price - costPrice) * quantity;
       } else {
+        // Fallback: Use an estimated profit margin of 30% when no cost price is available
         itemProfit = (price * 0.3) * quantity;
       }
       
-      // Update totals
+      // Update total profit
       profit += itemProfit;
-      totalItems += quantity;
       
-      // Update category data
+      // Track sales and profit by category
       if (!categorySales[category]) {
         categorySales[category] = {
           sales: 0,
@@ -303,11 +238,14 @@ export const calculateSalesAndProfit = async (receipts, shopId = null) => {
         };
       }
       
+      // Update category data
       categorySales[category].sales += price * quantity;
       categorySales[category].profit += itemProfit;
       categorySales[category].items += quantity;
-    });
-  });
+      
+      totalItems += quantity;
+    }
+  }
   
   // Convert category data to array for easier processing
   const categoryData = Object.keys(categorySales).map(category => ({
@@ -323,15 +261,6 @@ export const calculateSalesAndProfit = async (receipts, shopId = null) => {
   // Sort categories by sales (highest first)
   categoryData.sort((a, b) => b.sales - a.sales);
   
-  // For debugging
-  console.log('Sales calculation:', {
-    sales,
-    profit,
-    totalItems,
-    transactionCount: receipts.length,
-    categoryData
-  });
-  
   return {
     sales,
     profit,
@@ -339,4 +268,4 @@ export const calculateSalesAndProfit = async (receipts, shopId = null) => {
     transactionCount: receipts.length,
     categoryData
   };
-}; 
+};
