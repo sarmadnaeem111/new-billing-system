@@ -1,5 +1,5 @@
 import { v4 as uuidv4 } from 'uuid';
-import { addDoc, collection, doc, getDoc, deleteDoc } from 'firebase/firestore';
+import { addDoc, collection, doc, getDoc, deleteDoc, updateDoc } from 'firebase/firestore';
 import { db } from '../firebase/config';
 
 // Generate a unique transaction ID
@@ -24,6 +24,21 @@ export const saveReceipt = async (receiptData) => {
     return docRef.id;
   } catch (error) {
     console.error('Error saving receipt:', error);
+    throw error;
+  }
+};
+
+// Update an existing receipt
+export const updateReceipt = async (receiptId, updateData) => {
+  try {
+    const receiptRef = doc(db, 'receipts', receiptId);
+    await updateDoc(receiptRef, {
+      ...updateData,
+      updatedAt: new Date().toISOString()
+    });
+    return receiptId;
+  } catch (error) {
+    console.error('Error updating receipt:', error);
     throw error;
   }
 };
