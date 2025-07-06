@@ -6,12 +6,14 @@ import { LanguageProvider } from './contexts/LanguageContext';
 import { useLanguage } from './contexts/LanguageContext';
 import PrivateRoute from './components/PrivateRoute';
 import AdminPrivateRoute from './components/AdminPrivateRoute';
+import ErrorBoundary from './components/ErrorBoundary';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
 import NewReceipt from './pages/NewReceipt';
 import ViewReceipts from './pages/ViewReceipts';
 import ViewReceipt from './pages/ViewReceipt';
+import EditReceipt from './pages/EditReceipt';
 import ViewStock from './pages/ViewStock';
 import AddStockItem from './pages/AddStockItem';
 import EditStockItem from './pages/EditStockItem';
@@ -39,131 +41,196 @@ function AppContent() {
   const { language } = useLanguage();
   const isRTL = language === 'ur';
   
+  console.log('AppContent rendering, language:', language);
+  
   return (
     <Router>
       <div className={`App ${isRTL ? 'rtl' : ''}`}>
         <Routes>
           {/* User Routes */}
-          <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} />
+          <Route path="/login" element={
+            <ErrorBoundary>
+              <Login />
+            </ErrorBoundary>
+          } />
+          <Route path="/register" element={
+            <ErrorBoundary>
+              <Register />
+            </ErrorBoundary>
+          } />
           <Route path="/dashboard" element={
-            <PrivateRoute>
-              <Dashboard />
-            </PrivateRoute>
+            <ErrorBoundary>
+              <PrivateRoute>
+                <Dashboard />
+              </PrivateRoute>
+            </ErrorBoundary>
           } />
           <Route path="/new-receipt" element={
-            <PrivateRoute>
-              <NewReceipt />
-            </PrivateRoute>
+            <ErrorBoundary>
+              <PrivateRoute>
+                <NewReceipt />
+              </PrivateRoute>
+            </ErrorBoundary>
           } />
           <Route path="/receipts" element={
-            <PrivateRoute>
-              <ViewReceipts />
-            </PrivateRoute>
+            <ErrorBoundary>
+              <PrivateRoute>
+                <ViewReceipts />
+              </PrivateRoute>
+            </ErrorBoundary>
           } />
           <Route path="/receipt/:id" element={
-            <PrivateRoute>
-              <ViewReceipt />
-            </PrivateRoute>
+            <ErrorBoundary>
+              <PrivateRoute>
+                <ViewReceipt />
+              </PrivateRoute>
+            </ErrorBoundary>
+          } />
+          <Route path="/edit-receipt/:id" element={
+            <ErrorBoundary>
+              <PrivateRoute>
+                <EditReceipt />
+              </PrivateRoute>
+            </ErrorBoundary>
           } />
           {/* Sales Analytics Route */}
           <Route path="/sales-analytics" element={
-            <PrivateRoute>
-              <SalesAnalytics />
-            </PrivateRoute>
+            <ErrorBoundary>
+              <PrivateRoute>
+                <SalesAnalytics />
+              </PrivateRoute>
+            </ErrorBoundary>
           } />
           {/* Stock Management Routes */}
           <Route path="/stock" element={
-            <PrivateRoute>
-              <ViewStock />
-            </PrivateRoute>
+            <ErrorBoundary>
+              <PrivateRoute>
+                <ViewStock />
+              </PrivateRoute>
+            </ErrorBoundary>
           } />
           <Route path="/add-stock" element={
-            <PrivateRoute>
-              <AddStockItem />
-            </PrivateRoute>
+            <ErrorBoundary>
+              <PrivateRoute>
+                <AddStockItem />
+              </PrivateRoute>
+            </ErrorBoundary>
           } />
           <Route path="/edit-stock/:id" element={
-            <PrivateRoute>
-              <EditStockItem />
-            </PrivateRoute>
+            <ErrorBoundary>
+              <PrivateRoute>
+                <EditStockItem />
+              </PrivateRoute>
+            </ErrorBoundary>
           } />
           {/* Employee Management Routes */}
           <Route path="/employees" element={
-            <PrivateRoute>
-              <Employees />
-            </PrivateRoute>
+            <ErrorBoundary>
+              <PrivateRoute>
+                <Employees />
+              </PrivateRoute>
+            </ErrorBoundary>
           } />
           <Route path="/add-employee" element={
-            <PrivateRoute>
-              <AddEmployee />
-            </PrivateRoute>
+            <ErrorBoundary>
+              <PrivateRoute>
+                <AddEmployee />
+              </PrivateRoute>
+            </ErrorBoundary>
           } />
           <Route path="/edit-employee/:id" element={
-            <PrivateRoute>
-              <EditEmployee />
-            </PrivateRoute>
+            <ErrorBoundary>
+              <PrivateRoute>
+                <EditEmployee />
+              </PrivateRoute>
+            </ErrorBoundary>
           } />
           {/* Salary Management Routes */}
           <Route path="/salary-management" element={
-            <PrivateRoute>
-              <SalaryManagement />
-            </PrivateRoute>
+            <ErrorBoundary>
+              <PrivateRoute>
+                <SalaryManagement />
+              </PrivateRoute>
+            </ErrorBoundary>
           } />
           <Route path="/add-salary-payment" element={
-            <PrivateRoute>
-              <AddSalaryPayment />
-            </PrivateRoute>
+            <ErrorBoundary>
+              <PrivateRoute>
+                <AddSalaryPayment />
+              </PrivateRoute>
+            </ErrorBoundary>
           } />
           <Route path="/edit-salary-payment/:id" element={
-            <PrivateRoute>
-              <EditSalaryPayment />
-            </PrivateRoute>
+            <ErrorBoundary>
+              <PrivateRoute>
+                <EditSalaryPayment />
+              </PrivateRoute>
+            </ErrorBoundary>
           } />
           <Route path="/salary-reports" element={
-            <PrivateRoute>
-              <SalaryReports />
-            </PrivateRoute>
+            <ErrorBoundary>
+              <PrivateRoute>
+                <SalaryReports />
+              </PrivateRoute>
+            </ErrorBoundary>
           } />
           {/* Attendance Management Routes */}
           <Route path="/attendance" element={
-            <PrivateRoute>
-              <Attendance />
-            </PrivateRoute>
+            <ErrorBoundary>
+              <PrivateRoute>
+                <Attendance />
+              </PrivateRoute>
+            </ErrorBoundary>
           } />
           <Route path="/mark-attendance" element={
-            <PrivateRoute>
-              <MarkAttendance />
-            </PrivateRoute>
+            <ErrorBoundary>
+              <PrivateRoute>
+                <MarkAttendance />
+              </PrivateRoute>
+            </ErrorBoundary>
           } />
           <Route path="/attendance-report" element={
-            <PrivateRoute>
-              <AttendanceReport />
-            </PrivateRoute>
+            <ErrorBoundary>
+              <PrivateRoute>
+                <AttendanceReport />
+              </PrivateRoute>
+            </ErrorBoundary>
           } />
           {/* Settings Route */}
           <Route path="/settings" element={
-            <PrivateRoute>
-              <Settings />
-            </PrivateRoute>
+            <ErrorBoundary>
+              <PrivateRoute>
+                <Settings />
+              </PrivateRoute>
+            </ErrorBoundary>
           } />
           
           {/* Admin Routes */}
-          <Route path="/admin/login" element={<AdminLogin />} />
+          <Route path="/admin/login" element={
+            <ErrorBoundary>
+              <AdminLogin />
+            </ErrorBoundary>
+          } />
           <Route path="/admin/dashboard" element={
-            <AdminPrivateRoute>
-              <AdminDashboard />
-            </AdminPrivateRoute>
+            <ErrorBoundary>
+              <AdminPrivateRoute>
+                <AdminDashboard />
+              </AdminPrivateRoute>
+            </ErrorBoundary>
           } />
           <Route path="/admin/pending-users" element={
-            <AdminPrivateRoute>
-              <AdminPendingUsers />
-            </AdminPrivateRoute>
+            <ErrorBoundary>
+              <AdminPrivateRoute>
+                <AdminPendingUsers />
+              </AdminPrivateRoute>
+            </ErrorBoundary>
           } />
           <Route path="/admin/users" element={
-            <AdminPrivateRoute>
-              <AdminManageUsers />
-            </AdminPrivateRoute>
+            <ErrorBoundary>
+              <AdminPrivateRoute>
+                <AdminManageUsers />
+              </AdminPrivateRoute>
+            </ErrorBoundary>
           } />
           
           <Route path="/" element={<Navigate replace to="/login" />} />
@@ -175,14 +242,18 @@ function AppContent() {
 }
 
 function App() {
+  console.log('App component rendering');
+  
   return (
-    <AuthProvider>
-      <AdminProvider>
-        <LanguageProvider>
-          <AppContent />
-        </LanguageProvider>
-      </AdminProvider>
-    </AuthProvider>
+    <ErrorBoundary>
+      <AuthProvider>
+        <AdminProvider>
+          <LanguageProvider>
+            <AppContent />
+          </LanguageProvider>
+        </AdminProvider>
+      </AuthProvider>
+    </ErrorBoundary>
   );
 }
 
